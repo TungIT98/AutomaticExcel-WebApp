@@ -59,9 +59,12 @@ def core_excel_to_word(excel_file, output_dir):
         # 3. Find all template files
         print(f"DEBUG: Looking for templates in: {template_folder_path}")
         print(f"DEBUG: Template folder exists: {template_folder_path.exists()}")
+        print(f"DEBUG: Current working directory: {os.getcwd()}")
+        print(f"DEBUG: All files in template folder: {list(template_folder_path.glob('*')) if template_folder_path.exists() else 'Folder not found'}")
         
         templates = list(template_folder_path.glob("*.docx"))
         print(f"DEBUG: Found {len(templates)} .docx files before filtering")
+        print(f"DEBUG: Template files: {[t.name for t in templates]}")
         
         # Filter out temp files and problematic templates
         templates = [t for t in templates if not t.name.startswith('~$') and t.name != '9. Phieu YCTN TNN.docx']
@@ -84,6 +87,8 @@ def core_excel_to_word(excel_file, output_dir):
         try:
             hoso_codes = excel_reader.get_all_hoso_codes()
             print(f"Found {len(hoso_codes)} hoso codes: {hoso_codes}")
+            print(f"DEBUG: Hoso codes type: {type(hoso_codes)}")
+            print(f"DEBUG: Hoso codes content: {hoso_codes}")
             
             if not hoso_codes:
                 return False, "No hồ sơ codes found in Excel file. Please check your Excel file has the correct format."
@@ -728,12 +733,6 @@ with app.app_context():
         else:
             print("Admin already exists")
             
-        # Tự động cấp quyền cho user đầu tiên nếu chưa có license
-        first_user = User.query.filter_by(has_active_license=False).first()
-        if first_user:
-            first_user.has_active_license = True
-            db.session.commit()
-            print(f"Auto-activated user: {first_user.username}")
     except Exception as e:
         print(f"Database error: {e}")
 
