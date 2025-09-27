@@ -1,0 +1,32 @@
+===============================================
+    HƯỚNG DẪN SỬ DỤNG EXCEL-TO-WORD WEB APP
+===============================================
+
+📋 CÁCH CHẠY CHƯƠNG TRÌNH:
+1. Mở Command Prompt (cmd) hoặc PowerShell
+2. Di chuyển vào thư mục webapp: cd webapp
+3. Chạy: run_webapp.bat
+4. Chờ cài đặt dependencies (lần đầu)
+5. Web App sẽ chạy tại: http://localhost:5000
+
+🔐 TÀI KHOẢN MẶC ĐỊNH:
+- Admin: admin / admin123
+- Truy cập Admin Panel: http://localhost:5000/admin
+
+👥 QUY TRÌNH CHO KHÁCH HÀNG:
+1. Khách hàng truy cập: http://localhost:5000
+2. Đăng ký tài khoản mới
+3. Admin cấp quyền trong Admin Panel
+4. Khách hàng upload Excel → nhận Word
+
+🛠️ TROUBLESHOOTING:
+- Lỗi "ModuleNotFoundError": Chạy pip install -r requirements.txt
+- Lỗi port 5000: Đổi port trong app.py (dòng cuối)
+- Lỗi pandas: Chạy pip install pandas numpy
+
+📞 HỖ TRỢ:
+- Liên hệ admin để được cấp quyền truy cập
+- Đảm bảo file Excel đúng định dạng (.xlsx, .xls)
+- Kiểm tra kết nối internet để tải dependencies
+
+===============================================
