@@ -1,0 +1,13 @@
+{
+  "name": "Automatic Excel Word Converter",
+  "description": "Convert Excel to Word documents",
+  "repository": "https://github.com/TungIT98/Automatic_Excel_Word",
+  "logo": "",
+  "keywords": ["python", "flask", "excel", "word"],
+  "success_url": "/",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
