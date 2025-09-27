@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timedelta
 import sys
 from pathlib import Path
+import io
 
 # Import core converter from parent directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -441,12 +442,25 @@ def download_file(conversion_id):
         zip_filename = f"conversion_{conversion_id}.zip"
         zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
         
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
+        # Tạo zip buffer để tránh lỗi file system
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file_path in conversion.output_filename.split(','):
                 if os.path.exists(file_path):
-                    zipf.write(file_path, os.path.basename(file_path))
+                    # Sử dụng arcname để đảm bảo tên file sạch
+                    zipf.write(file_path, arcname=os.path.basename(file_path))
+                    print(f"Added to ZIP: {os.path.basename(file_path)}")
         
-        return send_file(zip_path, as_attachment=True, download_name=zip_filename)
+        # Reset buffer position
+        zip_buffer.seek(0)
+        
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name=zip_filename,
+            mimetype='application/zip'
+        )
         
     except Exception as e:
         print(f"Download error: {e}")
