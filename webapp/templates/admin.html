@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Excel to Word Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .users-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .users-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .login-form {
+            display: block;
+        }
+        
+        .admin-panel {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Admin Login Form -->
+        <div id="adminLoginForm" class="login-form">
+            <div class="header">
+                <h1>🔐 Admin Login</h1>
+                <p>Excel to Word Converter - Admin Panel</p>
+            </div>
+            
+            <form id="adminLoginFormElement">
+                <div class="form-group">
+                    <label for="adminUsername">Tên đăng nhập:</label>
+                    <input type="text" id="adminUsername" name="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="adminPassword">Mật khẩu:</label>
+                    <input type="password" id="adminPassword" name="password" required>
+                </div>
+                
+                <button type="submit" class="btn">Đăng nhập Admin</button>
+            </form>
+            
+            <div class="message" id="adminLoginMessage"></div>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="admin-panel">
+            <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+            
+            <div class="header">
+                <h1>👨‍💼 Admin Panel</h1>
+                <p>Quản lý người dùng và cấp quyền</p>
+            </div>
+            
+            <div class="form-group">
+                <button class="btn" onclick="loadUsers()">🔄 Tải lại danh sách</button>
+            </div>
+            
+            <div class="message" id="adminMessage"></div>
+            
+            <table class="users-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên đăng nhập</th>
+                        <th>Email</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            Đang tải danh sách người dùng...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = null;
+        
+        // Check if admin is already logged in
+        window.onload = function() {
+            adminToken = localStorage.getItem('adminToken');
+            if (adminToken) {
+                showAdminPanel();
+                loadUsers();
+            }
+        };
+        
+        // Admin login form handler
+        document.getElementById('adminLoginFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    adminToken = data.access_token;
+                    localStorage.setItem('adminToken', adminToken);
+                    showAdminPanel();
+                    loadUsers();
+                } else {
+                    showMessage('adminLoginMessage', data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('adminLoginMessage', 'Lỗi kết nối: ' + error.message, 'error');
+            }
+        });
+        
+        async function loadUsers() {
+            try {
+                console.log('Loading users with token:', adminToken);
+                const response = await fetch('/api/admin/users', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Users data:', data);
+                
+                if (response.ok) {
+                    displayUsers(data);
+                } else {
+                    showMessage('adminMessage', 'Lỗi: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showMessage('adminMessage', 'Lỗi kết nối: ' + error.message, 'error');
+            }
+        }
+        
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">Không có người dùng nào</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>
+                        <span class="status-badge ${user.has_active_license ? 'status-active' : 'status-inactive'}">
+                            ${user.has_active_license ? 'Đã cấp quyền' : 'Chưa cấp quyền'}
+                        </span>
+                    </td>
+                    <td>${user.created_at ? new Date(user.created_at).toLocaleDateString('vi-VN') : 'N/A'}</td>
+                    <td>
+                        <button class="btn ${user.has_active_license ? 'btn-danger' : 'btn-success'}" 
+                                onclick="toggleLicense(${user.id}, ${!user.has_active_license})">
+                            ${user.has_active_license ? 'Thu hồi quyền' : 'Cấp quyền'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function toggleLicense(userId, hasLicense) {
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/license`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ has_active_license: hasLicense })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('adminMessage', data.message, 'success');
+                    loadUsers(); // Reload users list
+                } else {
+                    showMessage('adminMessage', 'Lỗi: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('adminMessage', 'Lỗi kết nối: ' + error.message, 'error');
+            }
+        }
+        
+        function showAdminPanel() {
+            document.getElementById('adminLoginForm').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            adminToken = null;
+            document.getElementById('adminLoginForm').style.display = 'block';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('adminLoginFormElement').reset();
+        }
+        
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `message ${type}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
+
