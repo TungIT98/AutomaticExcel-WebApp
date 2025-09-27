@@ -206,19 +206,20 @@ def convert_excel_to_word():
         db.session.add(conversion)
         db.session.commit()
         
-        # 7. Chạy chương trình chuyển đổi gốc (Simple version)
-        # converter = SecureExcelToWordConverter()
-        # output_files = converter.convert_excel_to_word(temp_file_path, user_id)
-        
-        # Simple conversion
-        success, result = simple_excel_to_word(temp_file_path, temp_dir)
-        if not success:
-            conversion.status = 'failed'
-            conversion.error_message = result
-            db.session.commit()
-            return {'error': f'Conversion failed: {result}'}, 500
-        
-        output_files = [result]
+        # 7. Chạy chương trình chuyển đổi gốc
+        try:
+            from core_converter import SecureExcelToWordConverter
+            converter = SecureExcelToWordConverter()
+            output_files = converter.convert_excel_to_word(temp_file_path, user_id)
+        except ImportError:
+            # Fallback to simple conversion
+            success, result = simple_excel_to_word(temp_file_path, temp_dir)
+            if not success:
+                conversion.status = 'failed'
+                conversion.error_message = result
+                db.session.commit()
+                return {'error': f'Conversion failed: {result}'}, 500
+            output_files = [result]
         
         # 8. Cập nhật status
         conversion.status = 'completed'
