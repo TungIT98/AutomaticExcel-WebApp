@@ -727,6 +727,13 @@ with app.app_context():
                 db.session.rollback()
         else:
             print("Admin already exists")
+            
+        # Tự động cấp quyền cho user đầu tiên nếu chưa có license
+        first_user = User.query.filter_by(has_active_license=False).first()
+        if first_user:
+            first_user.has_active_license = True
+            db.session.commit()
+            print(f"Auto-activated user: {first_user.username}")
     except Exception as e:
         print(f"Database error: {e}")
 
