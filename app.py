@@ -268,13 +268,18 @@ def convert_excel_to_word():
     try:
         # 1. Lấy user_id từ JWT token
         user_id = get_jwt_identity()
+        print(f"DEBUG: JWT user_id: {user_id}")
         user = User.query.get(user_id)
+        print(f"DEBUG: User found: {user}")
         
         if not user:
+            print("DEBUG: User not found in database")
             return {'error': 'User not found'}, 404
         
         # 2. KIỂM TRA QUYỀN TRUY CẬP (RẤT QUAN TRỌNG)
+        print(f"DEBUG: User license status: {user.has_active_license}")
         if not user.has_active_license:
+            print("DEBUG: User license not active")
             return {
                 'error': 'Access denied. Please contact administrator for license activation.',
                 'code': 'NO_LICENSE'
@@ -539,6 +544,61 @@ def debug_admin():
     except Exception as e:
         return {'error': f'Database error: {str(e)}'}, 500
 
+@app.route('/api/debug/database', methods=['GET'])
+def debug_database():
+    """Debug endpoint để kiểm tra toàn bộ database"""
+    try:
+        users = User.query.all()
+        admins = Admin.query.all()
+        conversions = Conversion.query.all()
+        
+        return jsonify({
+            'users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'has_active_license': user.has_active_license,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            } for user in users],
+            'admins': [{
+                'id': admin.id,
+                'username': admin.username,
+                'email': admin.email,
+                'created_at': admin.created_at.isoformat() if admin.created_at else None
+            } for admin in admins],
+            'conversions': [{
+                'id': conv.id,
+                'user_id': conv.user_id,
+                'status': conv.status,
+                'created_at': conv.created_at.isoformat() if conv.created_at else None
+            } for conv in conversions],
+            'total_users': len(users),
+            'total_admins': len(admins),
+            'total_conversions': len(conversions)
+        })
+    except Exception as e:
+        return {'error': f'Database error: {str(e)}'}, 500
+
+@app.route('/api/debug/activate-user/<int:user_id>', methods=['POST'])
+def activate_user_debug(user_id):
+    """Debug endpoint để cấp quyền cho user (không cần auth)"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'User not found'}, 404
+        
+        user.has_active_license = True
+        db.session.commit()
+        
+        return {
+            'message': f'User {user.username} has been activated',
+            'user_id': user.id,
+            'username': user.username,
+            'has_active_license': user.has_active_license
+        }
+    except Exception as e:
+        return {'error': f'Database error: {str(e)}'}, 500
+
 @app.route('/api/validate-excel', methods=['POST'])
 @jwt_required()
 def validate_excel():
@@ -644,15 +704,22 @@ with app.app_context():
         db.create_all()
         
         # Tạo admin mặc định nếu chưa có
-        if not Admin.query.first():
-            admin = Admin(
-                username='admin',
-                email='admin@example.com',
-                password_hash=generate_password_hash('admin123')
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Default admin created: username=admin, password=admin123")
+        existing_admin = Admin.query.filter_by(username='admin').first()
+        if not existing_admin:
+            try:
+                admin = Admin(
+                    username='admin',
+                    email='admin@example.com',
+                    password_hash=generate_password_hash('admin123')
+                )
+                db.session.add(admin)
+                db.session.commit()
+                print("Default admin created: username=admin, password=admin123")
+            except Exception as e:
+                print(f"Admin already exists or error creating admin: {e}")
+                db.session.rollback()
+        else:
+            print("Admin already exists")
     except Exception as e:
         print(f"Database error: {e}")
 
