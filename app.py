@@ -11,50 +11,130 @@ from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 
-# Import core converter
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# from core_converter import SecureExcelToWordConverter
+# Import core converter from parent directory
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from excel_reader import ExcelReader
 
-# Simple converter function (no heavy dependencies)
-def simple_excel_to_word(excel_file, output_dir):
-    """Simple Excel to Word converter without heavy dependencies"""
+# Core converter function - replicates run.py logic with robust error handling
+def core_excel_to_word(excel_file, output_dir):
+    """Core Excel to Word converter - replicates run.py logic with robust error handling"""
     try:
-        # Create a simple Word document
         from docxtpl import DocxTemplate
+        from pathlib import Path
         import os
+        import pandas as pd
         
-        # Get template file - try multiple locations
-        template_file = None
-        possible_templates = [
-            os.path.join('templates', '1. Bia HSCN.docx'),
-            os.path.join('templates', '2. HSCN PT7 - HSKH.docx'),
-            os.path.join('templates', '3. HSCN PT7 - Phu luc.docx')
-        ]
+        print(f"=== BẮT ĐẦU CHUYỂN ĐỔI ===")
+        print(f"Excel file: {excel_file}")
+        print(f"Output dir: {output_dir}")
         
-        for template in possible_templates:
-            if os.path.exists(template):
-                template_file = template
-                break
+        # 1. Validate Excel file first
+        try:
+            print("Validating Excel file...")
+            # Try to read Excel file to check if it's valid
+            test_df = pd.read_excel(excel_file, sheet_name=None, nrows=1)
+            print(f"Excel file validation successful. Found sheets: {list(test_df.keys())}")
+        except Exception as e:
+            return False, f"Invalid Excel file: {str(e)}"
         
-        if not template_file:
-            return False, "No template file found"
+        # 2. Get template folder from parent directory
+        template_folder = os.path.join('..', 'templates')
+        template_folder_path = Path(template_folder)
         
-        # Create output file
-        output_file = os.path.join(output_dir, 'output.docx')
+        if not template_folder_path.exists():
+            return False, f"Template folder not found: {template_folder}"
         
-        # Simple template rendering
-        doc = DocxTemplate(template_file)
-        context = {
-            'Ten_doanh_nghiep': 'CÔNG TY TNHH XÂY DỰNG GUAN HENG',
-            'Dia_chi': '123 Đường ABC, Quận 1, TP.HCM',
-            'Ngay_ky': datetime.now().strftime('%d/%m/%Y')
-        }
-        doc.render(context)
-        doc.save(output_file)
+        # 3. Find all template files
+        templates = list(template_folder_path.glob("*.docx"))
+        # Filter out temp files and problematic templates
+        templates = [t for t in templates if not t.name.startswith('~$') and t.name != '9. Phieu YCTN TNN.docx']
         
-        return True, output_file
+        print(f"Found {len(templates)} templates: {[t.name for t in templates]}")
+        
+        if not templates:
+            return False, "No valid templates found"
+        
+        # 4. Initialize ExcelReader with error handling
+        try:
+            print("Initializing ExcelReader...")
+            excel_reader = ExcelReader(excel_file)
+            print("ExcelReader initialized successfully")
+        except Exception as e:
+            return False, f"Failed to read Excel file: {str(e)}"
+        
+        # 5. Get all hoso codes with validation
+        try:
+            hoso_codes = excel_reader.get_all_hoso_codes()
+            print(f"Found {len(hoso_codes)} hoso codes: {hoso_codes}")
+            
+            if not hoso_codes:
+                return False, "No hồ sơ codes found in Excel file. Please check your Excel file has the correct format."
+        except Exception as e:
+            return False, f"Failed to extract hồ sơ codes: {str(e)}"
+        
+        output_files = []
+        error_count = 0
+        
+        # 6. Process each hoso code
+        for ma_ho_so in hoso_codes:
+            print(f"--- Processing hoso: {ma_ho_so} ---")
+            
+            try:
+                # Create context for this hoso
+                context = excel_reader.create_complete_context(ma_ho_so)
+                print(f"Context keys: {list(context.keys())}")
+                
+                if not context:
+                    print(f"Warning: Empty context for hoso {ma_ho_so}")
+                    continue
+                
+            except Exception as e:
+                print(f"Error creating context for hoso {ma_ho_so}: {e}")
+                error_count += 1
+                continue
+            
+            # 7. Process each template
+            for template_path in templates:
+                try:
+                    template_filename = template_path.name
+                    print(f"  Processing template: {template_filename}")
+                    
+                    # Create final context
+                    final_context = context.copy()
+                    
+                    # Load and render template
+                    doc = DocxTemplate(template_path)
+                    doc.render(final_context)
+                    
+                    # Create output filename
+                    ten_kh = context.get('ten_kh', 'Unknown').replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    ma_ho_so_clean = ma_ho_so.replace('/', '_').replace('\\', '_')
+                    template_name_clean = template_path.stem.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    output_filename = f"{template_name_clean}_{ma_ho_so_clean}_{ten_kh}.docx"
+                    output_path = os.path.join(output_dir, output_filename)
+                    
+                    # Save the document
+                    doc.save(output_path)
+                    output_files.append(output_path)
+                    print(f"    -> Created: {output_path}")
+                    
+                except Exception as e:
+                    print(f"    -> ERROR processing template '{template_filename}': {e}")
+                    error_count += 1
+                    continue
+        
+        print(f"=== COMPLETED: Created {len(output_files)} files, {error_count} errors ===")
+        
+        if not output_files:
+            return False, "No files were created. Please check your Excel file format and templates."
+        
+        return True, output_files
+        
     except Exception as e:
-        return False, f"Conversion error: {str(e)}"
+        print(f"=== CRITICAL ERROR in core_excel_to_word: {e} ===")
+        import traceback
+        traceback.print_exc()
+        return False, f"Critical error: {str(e)}"
 
 app = Flask(__name__)
 
@@ -180,17 +260,49 @@ def convert_excel_to_word():
                 'code': 'NO_LICENSE'
             }, 403
         
-        # 3. Kiểm tra file upload
+        # 3. Kiểm tra file upload với validation chi tiết
+        print(f"DEBUG: request.files keys: {list(request.files.keys())}")
+        print(f"DEBUG: request.files: {request.files}")
+        print(f"DEBUG: request.content_type: {request.content_type}")
+        print(f"DEBUG: request.content_length: {request.content_length}")
+        
         if 'file' not in request.files:
-            return {'error': 'No file provided'}, 400
+            print("DEBUG: No 'file' key in request.files")
+            return {'error': 'No file provided. Please select an Excel file.'}, 400
         
         file = request.files['file']
-        if file.filename == '':
-            return {'error': 'No file selected'}, 400
+        print(f"DEBUG: File object: {file}")
+        print(f"DEBUG: File filename: {file.filename}")
+        print(f"DEBUG: File content_type: {file.content_type}")
         
-        # 4. Kiểm tra định dạng file
-        if not file.filename.lower().endswith(('.xlsx', '.xls')):
-            return {'error': 'Invalid file type. Only Excel files are allowed.'}, 400
+        if file.filename == '' or file.filename is None:
+            print("DEBUG: Empty filename")
+            return {'error': 'No file selected. Please choose an Excel file.'}, 400
+        
+        # 4. Kiểm tra định dạng file với validation chi tiết
+        filename_lower = file.filename.lower()
+        if not (filename_lower.endswith('.xlsx') or filename_lower.endswith('.xls')):
+            return {
+                'error': 'Invalid file type. Only Excel files (.xlsx, .xls) are allowed.',
+                'received_type': file.content_type,
+                'filename': file.filename
+            }, 400
+        
+        # 5. Kiểm tra kích thước file
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        print(f"DEBUG: File size: {file_size} bytes")
+        
+        if file_size == 0:
+            return {'error': 'File is empty. Please upload a valid Excel file.'}, 400
+        
+        if file_size > app.config['MAX_CONTENT_LENGTH']:
+            return {
+                'error': f'File too large. Maximum size allowed: {app.config["MAX_CONTENT_LENGTH"] / (1024*1024):.1f} MB',
+                'file_size': f'{file_size / (1024*1024):.1f} MB'
+            }, 400
         
         # 5. Lưu file tạm thời
         temp_dir = tempfile.mkdtemp()
@@ -206,20 +318,48 @@ def convert_excel_to_word():
         db.session.add(conversion)
         db.session.commit()
         
-        # 7. Chạy chương trình chuyển đổi gốc
+        # 7. Chạy chương trình chuyển đổi gốc (Core version) với error handling
         try:
-            from core_converter import SecureExcelToWordConverter
-            converter = SecureExcelToWordConverter()
-            output_files = converter.convert_excel_to_word(temp_file_path, user_id)
-        except ImportError:
-            # Fallback to simple conversion
-            success, result = simple_excel_to_word(temp_file_path, temp_dir)
+            print(f"Starting conversion for file: {temp_file_path}")
+            success, result = core_excel_to_word(temp_file_path, temp_dir)
+            
             if not success:
+                print(f"Conversion failed: {result}")
                 conversion.status = 'failed'
-                conversion.error_message = result
+                conversion.error_message = str(result)
                 db.session.commit()
-                return {'error': f'Conversion failed: {result}'}, 500
-            output_files = [result]
+                
+                # Clean up temp file
+                try:
+                    os.remove(temp_file_path)
+                except:
+                    pass
+                
+                return {
+                    'error': f'Conversion failed: {result}',
+                    'details': 'Please check your Excel file format and try again.'
+                }, 500
+            
+            # result is now a list of output files
+            output_files = result if isinstance(result, list) else [result]
+            print(f"Conversion successful. Created {len(output_files)} files")
+            
+        except Exception as e:
+            print(f"Critical error during conversion: {e}")
+            conversion.status = 'failed'
+            conversion.error_message = f'Critical error: {str(e)}'
+            db.session.commit()
+            
+            # Clean up temp file
+            try:
+                os.remove(temp_file_path)
+            except:
+                pass
+            
+            return {
+                'error': f'Critical conversion error: {str(e)}',
+                'details': 'Please contact support if this error persists.'
+            }, 500
         
         # 8. Cập nhật status
         conversion.status = 'completed'
@@ -378,6 +518,105 @@ def debug_admin():
         } for admin in admins])
     except Exception as e:
         return {'error': f'Database error: {str(e)}'}, 500
+
+@app.route('/api/validate-excel', methods=['POST'])
+@jwt_required()
+def validate_excel():
+    """Validate Excel file before conversion"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return {'error': 'User not found'}, 404
+        
+        if not user.has_active_license:
+            return {
+                'error': 'Access denied. Please contact administrator for license activation.',
+                'code': 'NO_LICENSE'
+            }, 403
+        
+        # Check file upload
+        if 'file' not in request.files:
+            return {'error': 'No file provided'}, 400
+        
+        file = request.files['file']
+        if file.filename == '' or file.filename is None:
+            return {'error': 'No file selected'}, 400
+        
+        # Check file type
+        filename_lower = file.filename.lower()
+        if not (filename_lower.endswith('.xlsx') or filename_lower.endswith('.xls')):
+            return {'error': 'Invalid file type. Only Excel files (.xlsx, .xls) are allowed.'}, 400
+        
+        # Check file size
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size == 0:
+            return {'error': 'File is empty'}, 400
+        
+        if file_size > app.config['MAX_CONTENT_LENGTH']:
+            return {
+                'error': f'File too large. Maximum size: {app.config["MAX_CONTENT_LENGTH"] / (1024*1024):.1f} MB'
+            }, 400
+        
+        # Save temp file for validation
+        temp_dir = tempfile.mkdtemp()
+        temp_file_path = os.path.join(temp_dir, secure_filename(file.filename))
+        file.save(temp_file_path)
+        
+        try:
+            # Validate Excel file structure
+            import pandas as pd
+            excel_data = pd.read_excel(temp_file_path, sheet_name=None, nrows=1)
+            
+            # Check for required sheets
+            required_sheets = ['hoso', 'hanghoa']
+            missing_sheets = [sheet for sheet in required_sheets if sheet not in excel_data]
+            
+            if missing_sheets:
+                return {
+                    'error': f'Missing required sheets: {missing_sheets}',
+                    'details': 'Excel file must contain "hoso" and "hanghoa" sheets.'
+                }, 400
+            
+            # Try to initialize ExcelReader
+            excel_reader = ExcelReader(temp_file_path)
+            hoso_codes = excel_reader.get_all_hoso_codes()
+            
+            if not hoso_codes:
+                return {
+                    'error': 'No hồ sơ codes found',
+                    'details': 'Excel file must contain valid hồ sơ data.'
+                }, 400
+            
+            # Clean up
+            os.remove(temp_file_path)
+            
+            return {
+                'valid': True,
+                'sheets': list(excel_data.keys()),
+                'hoso_count': len(hoso_codes),
+                'hoso_codes': hoso_codes[:5],  # Show first 5 codes
+                'file_size': f'{file_size / (1024*1024):.1f} MB'
+            }
+            
+        except Exception as e:
+            # Clean up on error
+            try:
+                os.remove(temp_file_path)
+            except:
+                pass
+            
+            return {
+                'error': f'Invalid Excel file: {str(e)}',
+                'details': 'Please check your Excel file format and structure.'
+            }, 400
+            
+    except Exception as e:
+        return {'error': f'Validation error: {str(e)}'}, 500
 
 # Initialize database for Vercel
 with app.app_context():

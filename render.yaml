@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: automatic-excel-word
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
-    envVars:
-      - key: PORT
-        value: 5000

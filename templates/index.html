@@ -277,6 +277,7 @@
     <script>
         let currentUser = null;
         let selectedFile = null;
+        let isProcessingFile = false;
         
         // Check if user is already logged in
         window.onload = function() {
@@ -360,7 +361,25 @@
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         
-        uploadArea.addEventListener('click', () => fileInput.click());
+        // Prevent multiple clicks and event bubbling
+        uploadArea.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Upload area clicked, isProcessingFile:', isProcessingFile);
+            
+            if (isProcessingFile) {
+                console.log('File is being processed, ignoring click');
+                return;
+            }
+            
+            fileInput.click();
+        });
+        
+        // Prevent file input from triggering multiple times
+        fileInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log('File input clicked');
+        });
         
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -381,24 +400,95 @@
         });
         
         fileInput.addEventListener('change', (e) => {
+            console.log('File input changed, files:', e.target.files.length, 'isProcessingFile:', isProcessingFile);
+            
+            if (isProcessingFile) {
+                console.log('File is being processed, ignoring change event');
+                return;
+            }
+            
             if (e.target.files.length > 0) {
                 handleFileSelect(e.target.files[0]);
+                // Clear the input to allow selecting the same file again
+                e.target.value = '';
             }
         });
         
-        function handleFileSelect(file) {
+        async function handleFileSelect(file) {
+            console.log('Handling file select:', file.name);
+            
+            if (isProcessingFile) {
+                console.log('File is already being processed, ignoring');
+                return;
+            }
+            
             if (!file.name.toLowerCase().endsWith('.xlsx') && !file.name.toLowerCase().endsWith('.xls')) {
                 showMessage('message', 'Chỉ hỗ trợ file Excel (.xlsx, .xls)', 'error');
                 return;
             }
             
             selectedFile = file;
+            isProcessingFile = true;
+            
+            // Disable file input temporarily to prevent multiple triggers
+            fileInput.disabled = true;
+            
             uploadArea.innerHTML = `
-                <h3>✅ File đã chọn</h3>
+                <h3>🔄 Đang kiểm tra file...</h3>
                 <p><strong>${file.name}</strong></p>
                 <p style="color: #666; font-size: 0.9em;">Kích thước: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
             `;
-            document.getElementById('convertBtn').disabled = false;
+            
+            // Validate file before enabling convert button
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/api/validate-excel', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    uploadArea.innerHTML = `
+                        <h3>✅ File hợp lệ</h3>
+                        <p><strong>${file.name}</strong></p>
+                        <p style="color: #666; font-size: 0.9em;">Kích thước: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p style="color: #28a745; font-size: 0.9em;">Tìm thấy ${data.hoso_count} hồ sơ</p>
+                        <p style="color: #666; font-size: 0.8em; margin-top: 10px;">Click để chọn file khác</p>
+                    `;
+                    document.getElementById('convertBtn').disabled = false;
+                } else {
+                    uploadArea.innerHTML = `
+                        <h3>❌ File không hợp lệ</h3>
+                        <p><strong>${file.name}</strong></p>
+                        <p style="color: #dc3545; font-size: 0.9em;">${data.error}</p>
+                        <p style="color: #666; font-size: 0.8em;">${data.details || ''}</p>
+                        <p style="color: #666; font-size: 0.8em; margin-top: 10px;">Click để chọn file khác</p>
+                    `;
+                    document.getElementById('convertBtn').disabled = true;
+                    selectedFile = null;
+                }
+            } catch (error) {
+                uploadArea.innerHTML = `
+                    <h3>❌ Lỗi kiểm tra file</h3>
+                    <p><strong>${file.name}</strong></p>
+                    <p style="color: #dc3545; font-size: 0.9em;">Không thể kiểm tra file: ${error.message}</p>
+                    <p style="color: #666; font-size: 0.8em; margin-top: 10px;">Click để chọn file khác</p>
+                `;
+                document.getElementById('convertBtn').disabled = true;
+                selectedFile = null;
+            } finally {
+                // Re-enable file input after processing
+                fileInput.disabled = false;
+                isProcessingFile = false;
+                console.log('File processing completed');
+            }
         }
         
         async function convertFile() {
@@ -488,3 +578,4 @@
     </script>
 </body>
 </html>
+
