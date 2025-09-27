@@ -1,11 +1,8 @@
-# Web app dependencies
 Flask==2.3.3
 Flask-JWT-Extended==4.5.3
 Flask-SQLAlchemy==3.0.5
 Werkzeug==2.3.7
 gunicorn==21.2.0
-
-# Core conversion dependencies - simplified versions
 pandas==1.5.3
 openpyxl==3.1.2
 python-docx==0.8.11
