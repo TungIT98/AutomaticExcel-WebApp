@@ -37,9 +37,21 @@ def core_excel_to_word(excel_file, output_dir):
         except Exception as e:
             return False, f"Invalid Excel file: {str(e)}"
         
-        # 2. Get template folder from parent directory
+        # 2. Get template folder - check both parent and current directory
         template_folder = os.path.join('..', 'templates')
         template_folder_path = Path(template_folder)
+        
+        # If parent templates not found, try current directory
+        if not template_folder_path.exists():
+            template_folder = 'templates'
+            template_folder_path = Path(template_folder)
+            print(f"Trying current directory templates: {template_folder_path}")
+        
+        # If still not found, try absolute path
+        if not template_folder_path.exists():
+            template_folder = os.path.join(os.getcwd(), 'templates')
+            template_folder_path = Path(template_folder)
+            print(f"Trying absolute path templates: {template_folder_path}")
         
         if not template_folder_path.exists():
             return False, f"Template folder not found: {template_folder}"
