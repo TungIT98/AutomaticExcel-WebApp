@@ -519,9 +519,31 @@
                 if (response.ok) {
                     showMessage('message', 'Chuyển đổi thành công! Đang tải file...', 'success');
                     
-                    // Download the result
-                    setTimeout(() => {
-                        window.open(`/api/download/${data.conversion_id}`, '_blank');
+                    // Download the result with proper blob handling
+                    setTimeout(async () => {
+                        try {
+                            const downloadResponse = await fetch(`/api/download/${data.conversion_id}`, {
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                }
+                            });
+                            
+                            if (downloadResponse.ok) {
+                                const blob = await downloadResponse.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `conversion_${data.conversion_id}.zip`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                            } else {
+                                showMessage('message', 'Lỗi tải file: ' + downloadResponse.statusText, 'error');
+                            }
+                        } catch (error) {
+                            showMessage('message', 'Lỗi tải file: ' + error.message, 'error');
+                        }
                     }, 1000);
                 } else {
                     if (data.code === 'NO_LICENSE') {
