@@ -269,6 +269,13 @@ def convert_excel_to_word():
         # 1. Lấy user_id từ JWT token
         user_id = get_jwt_identity()
         print(f"DEBUG: JWT user_id: {user_id}")
+        print(f"DEBUG: JWT user_id type: {type(user_id)}")
+        
+        # Convert to int if string
+        if isinstance(user_id, str):
+            user_id = int(user_id)
+            print(f"DEBUG: Converted user_id to int: {user_id}")
+        
         user = User.query.get(user_id)
         print(f"DEBUG: User found: {user}")
         
