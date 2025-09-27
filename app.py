@@ -57,11 +57,17 @@ def core_excel_to_word(excel_file, output_dir):
             return False, f"Template folder not found: {template_folder}"
         
         # 3. Find all template files
+        print(f"DEBUG: Looking for templates in: {template_folder_path}")
+        print(f"DEBUG: Template folder exists: {template_folder_path.exists()}")
+        
         templates = list(template_folder_path.glob("*.docx"))
+        print(f"DEBUG: Found {len(templates)} .docx files before filtering")
+        
         # Filter out temp files and problematic templates
         templates = [t for t in templates if not t.name.startswith('~$') and t.name != '9. Phieu YCTN TNN.docx']
         
         print(f"Found {len(templates)} templates: {[t.name for t in templates]}")
+        print(f"DEBUG: Template paths: {[str(t) for t in templates]}")
         
         if not templates:
             return False, "No valid templates found"
@@ -106,7 +112,9 @@ def core_excel_to_word(excel_file, output_dir):
                 continue
             
             # 7. Process each template
-            for template_path in templates:
+            print(f"DEBUG: About to process {len(templates)} templates for hoso {ma_ho_so}")
+            for i, template_path in enumerate(templates):
+                print(f"DEBUG: Processing template {i+1}/{len(templates)}: {template_path}")
                 try:
                     template_filename = template_path.name
                     print(f"  Processing template: {template_filename}")
